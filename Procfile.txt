@@ -1,2 +1,1 @@
 web: gunicorn "mycode:create_app"
-worker: gunicorn "mycode:create_app"
