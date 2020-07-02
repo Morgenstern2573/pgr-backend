@@ -75,7 +75,7 @@ def create_app():
             goal = dbc.execute(
                 'SELECT * FROM goals WHERE goal_id = ?', (goal_id,)).fetchone()
             sub_goals_row = dbc.execute(
-                'SELECT * FROM subgoals WHERE goal_id = ?', (goal_id)).fetchall()
+                'SELECT * FROM subgoals WHERE goal_id = ?', (goal_id,)).fetchall()
             if len(sub_goals_row) == 0:
                 return json.dumps({'goal': goal['title'], 'subgoals': [(goal_id, -1, 'User has no sub-goals', -1)], 'status': 0})
             else:
