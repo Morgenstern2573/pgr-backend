@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS courses;
-DROP TABLE IF EXISTS subcourses;
+DROP TABLE IF EXISTS goals;
+DROP TABLE IF EXISTS subgoals;
 
 CREATE TABLE users(
     'id' INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,16 +8,16 @@ CREATE TABLE users(
     'password' TEXT NOT NULL
 );
 
-CREATE TABLE  courses(
+CREATE TABLE  goals(
     'userid' INTEGER,
     'title' TEXT NOT NULL,
-    'code' TEXT NOT NULL,
-    'course_id' INTEGER PRIMARY KEY AUTOINCREMENT
+    'goal_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'status' INTEGER DEFAULT 0
 );
 
-CREATE TABLE subcourses(
-    'course_id' INTEGER,
-    'scourseid' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'title' TEXT UNIQUE NOT NULL,
+CREATE TABLE subgoals(
+    'goal_id' INTEGER,
+    'sgoalid' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'title' TEXT NOT NULL,
     'status' INTEGER
 );

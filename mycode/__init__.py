@@ -25,7 +25,7 @@ def create_app():
     @app.after_request
     def after_request(response):
         response.headers.add('Access-Control-Allow-Origin',
-                             'https://pgrtracker.vercel.app')
+                             'http://localhost:3000')
         response.headers.add('Access-Control-Allow-Headers',
                              'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods',
@@ -33,69 +33,81 @@ def create_app():
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
 
-    @app.route('/', methods=('GET', 'POST'))
+    @app.route('/', methods=('GET', 'POST', 'DELETE'))
     def index():
         dbc = db.get_db()
         if flask.request.method == 'GET':
             user_id = flask.session['user_id']
-            course_list = dbc.execute(
-                'SELECT * FROM courses WHERE userid=?', (user_id,)).fetchall()
-            if len(course_list) == 0:
-                course_list = json.dumps(
-                    [[user_id, "User has no courses", "-1", -1]])
-                return course_list
+            goal_list = dbc.execute(
+                'SELECT * FROM goals WHERE userid=?', (user_id,)).fetchall()
+            if len(goal_list) == 0:
+                goal_list = json.dumps(
+                    [[user_id, "User has no goals", -1, -1]])
+                return goal_list
             else:
                 retv = []
-                for i in range(len(course_list)):
-                    retv.append(tuple(course_list[i]))
+                for i in range(len(goal_list)):
+                    retv.append(tuple(goal_list[i]))
                 return json.dumps(retv)
-
+        elif flask.request.method == 'DELETE':
+            course_id = flask.request.args.get('id')
+            dbc.execute('DELETE FROM goals WHERE goal_id = ?', (course_id,))
+            dbc.execute('DELETE FROM subgoals WHERE goal_id = ?', (course_id,))
+            dbc.commit()
+            return json.dumps({'status': 'success'})
         else:
             user_id = flask.session['user_id']
-            course_title = flask.request.form['course'].lower()
-            course_code = flask.request.form['code'].lower()
-            if dbc.execute('SELECT * FROM courses WHERE title= ? AND userid = ?', (course_title, user_id)).fetchone() is not None:
-                return json.dumps({'status': 'error', 'message': 'Course already exists!'})
+            goal_title = flask.request.form['goal'].lower()
+            if dbc.execute('SELECT * FROM goals WHERE title= ? AND userid = ?', (goal_title, user_id)).fetchone() is not None:
+                return json.dumps({'status': 'error', 'message': 'Goal already exists!'})
             else:
-                dbc.execute('INSERT INTO courses (userid, title, code) VALUES(?, ?, ?)',
-                            (user_id, course_title, course_code))
+                dbc.execute('INSERT INTO goals (userid, title) VALUES(?, ?)',
+                            (user_id, goal_title))
                 dbc.commit()
-                return json.dumps({'status': "Course Added"})
+                return json.dumps({'status': "Goal Added"})
 
-    @app.route('/course', methods=('GET', 'POST', 'PATCH', 'DELETE'))
-    def course():
+    @app.route('/goal', methods=('GET', 'POST', 'PATCH', 'DELETE'))
+    def goal():
         dbc = db.get_db()
         user_id = flask.session['user_id']
         if flask.request.method == 'GET':
-            course_id = flask.request.args.get('id')
-            course_name = dbc.execute(
-                'SELECT * FROM courses WHERE course_id = ?', (course_id,)).fetchone()['title']
-            sub_courses_row = dbc.execute(
-                'SELECT * FROM subcourses WHERE course_id = ?', (course_id)).fetchall()
-            if len(sub_courses_row) == 0:
-                return json.dumps({'course': course_name, 'subcourses': [(course_id, -1, 'User has no sub-courses', -1)]})
+            goal_id = flask.request.args.get('id')
+            goal = dbc.execute(
+                'SELECT * FROM goals WHERE goal_id = ?', (goal_id,)).fetchone()
+            sub_goals_row = dbc.execute(
+                'SELECT * FROM subgoals WHERE goal_id = ?', (goal_id)).fetchall()
+            if len(sub_goals_row) == 0:
+                return json.dumps({'goal': goal['title'], 'subgoals': [(goal_id, -1, 'User has no sub-goals', -1)], 'status': 0})
             else:
-                sub_courses_tuples = []
-                for i in range(len(sub_courses_row)):
-                    sub_courses_tuples.append(tuple(sub_courses_row[i]))
-                return json.dumps({'course': course_name, 'subcourses': sub_courses_tuples})
+                sub_goals_tuples = []
+                for i in range(len(sub_goals_row)):
+                    sub_goals_tuples.append(tuple(sub_goals_row[i]))
+                return json.dumps({'goal': goal['title'], 'subgoals': sub_goals_tuples, 'status': goal['status']})
         elif flask.request.method == 'POST':
             title = flask.request.form['title'].lower().lstrip()
-            course_id = flask.request.form['id'].lstrip()
-            if title is None or course_id is None:
+            goal_id = flask.request.form['id'].lstrip()
+            if title is None or goal_id is None:
                 return json.dumps({'status': 'error', 'message': 'Title not given'})
-            elif title == "" or course_id == "":
+            elif title == "" or goal_id == "":
                 return json.dumps({'status': 'error', 'message': 'Title cannot be empty or the space character'})
-            elif dbc.execute('SELECT * FROM subcourses WHERE title = ? AND course_id = ?', (title, course_id)).fetchone() is not None:
-                return json.dumps({'status': 'error', 'message': 'Duplicate Sub Courses not allowed'})
+            elif dbc.execute('SELECT * FROM subgoals WHERE title = ? AND goal_id = ?', (title, goal_id)).fetchone() is not None:
+                return json.dumps({'status': 'error', 'message': 'Duplicate Sub goals not allowed'})
             else:
                 dbc.execute(
-                    'INSERT INTO subcourses(course_id, title, status) VALUES (?, ?, ?)', (course_id, title, 0))
+                    'INSERT INTO subgoals(goal_id, title, status) VALUES (?, ?, ?)', (goal_id, title, 0))
                 dbc.commit()
                 return json.dumps({'status': 'success'})
         elif flask.request.method == 'DELETE':
             s_id = flask.request.args.get('id')
-            dbc.execute('DELETE FROM subcourses WHERE scourseid = ?', (s_id,))
+            dbc.execute('DELETE FROM subgoals WHERE sgoalid = ?', (s_id,))
+            dbc.commit()
+            return json.dumps({'status': 'success'})
+        elif flask.request.method == 'PATCH':
+            goal_id = flask.request.form['id']
+            status = flask.request.form['status']
+            print(goal_id, status)
+            dbc.execute(
+                'UPDATE goals SET status = ? WHERE goal_id = ?', (status, goal_id))
             dbc.commit()
             return json.dumps({'status': 'success'})
 
@@ -104,10 +116,8 @@ def create_app():
         dbc = db.get_db()
         s_id = flask.request.form['id']
         status = flask.request.form['status']
-        print("The id is ", s_id)
-        print("The status is", status)
         dbc.execute(
-            'UPDATE subcourses SET status = ? WHERE scourseid = ?', (status, s_id))
+            'UPDATE subgoals SET status = ? WHERE sgoalid = ?', (status, s_id))
         dbc.commit()
         return json.dumps({'status': 'success'})
 

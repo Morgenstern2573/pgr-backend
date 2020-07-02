@@ -29,6 +29,8 @@ def register():
             con.execute('INSERT INTO users(username, password) VALUES(?, ?)',
                         (username, generate_password_hash(password)))
             con.commit()
+            session['user_id'] = con.execute(
+                'SELECT * FROM users WHERE username=?', (username,)).fetchone()['id']
             return json.dumps({"status": "registered"})
 
 
